@@ -2,11 +2,13 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const puppeteer = require("puppeteer");
 const Cheerio = require("cheerio");
+var cors = require('cors')
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
+app.use(cors());
 
 const minimal_args = [
   "--autoplay-policy=user-gesture-required",
@@ -114,10 +116,11 @@ app.post("/numbers", async (req, res) => {
       req.continue();
     }
   });
+  console.log(labels)
   labels = labels.map((element) => encodeURIComponent(element));
-  for (let i = 0; i < labels.length; i++) {
-    results.push(await scrapeData(labels[i], page));
-    if (results.length === labels.length) {
+  for(let i = 0; i < labels.length; i++) {
+    results.push(await scrapeData(labels[i], page))
+    if(results.length === labels.length) {
       res.send(results);
       await browser.close();
     }
@@ -127,18 +130,18 @@ app.post("/numbers", async (req, res) => {
 async function scrapeData(label, page) {
   const data = [];
   const LINK = "https://www.teacherspayteachers.com/Browse/Search:";
-  console.log(`Scraping ${label}`);
-
+  console.log(`Scraping ${label}`)
+  
   await page.goto(LINK + label, { waitUntil: "networkidle2" });
-  let html = await page.$eval(".ResultsForSearchResultHeader", (element) => {
+  let html = await page.$eval('.ResultsForSearchResultHeader', (element) => {
     return element.innerHTML;
-  });
+  })
 
   var $ = Cheerio.load(html);
-  var result = $(".Text-module__noMarginBottom--VJdLv").text();
-  var resultNumber = result.split(" ")[0];
+  var result = $('.Text-module__noMarginBottom--VJdLv').text();
+  var resultNumber = result.split(' ')[0];
   console.log(`Scraped ${label}`);
-  return { label: decodeURIComponent(label), resultNumber };
+  return { label: decodeURIComponent(label) , resultNumber};
 }
 
 // Start the server
