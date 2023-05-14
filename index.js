@@ -9,6 +9,10 @@ const PORT = process.env.PORT || 3000;
 app.use(bodyParser.json());
 app.use(cors());
 
+app.get("/", (req, res) => {
+  res.send("Running!");
+});
+
 // POST request handler
 app.post("/numbers", async (req, res) => {
   const url = "https://www.teacherspayteachers.com/";
