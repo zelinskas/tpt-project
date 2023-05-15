@@ -9,10 +9,10 @@ const PORT = process.env.PORT || 3000;
 app.use(bodyParser.json());
 app.use(cors());
 
+
 app.get("/", (req, res) => {
   res.send("Running!");
 });
-
 // POST request handler
 app.post("/numbers", async (req, res) => {
   const url = "https://www.teacherspayteachers.com/";
@@ -21,7 +21,7 @@ app.post("/numbers", async (req, res) => {
   try {
     res.send(await run(labels));
   } catch (e) {
-    res.status(500).send("Scrapping Numbers Failed");
+    res.status(500).send(e);
   }
 });
 
@@ -85,7 +85,7 @@ async function run(labels) {
     });
 
     try {
-      console.log(`Opening ${label} page`);
+      console.log(`Opening ${label} page`)
       await page.goto(
         "https://www.teacherspayteachers.com/Browse/Search:" + label,
         { waitUntil: "domcontentloaded" }
@@ -93,7 +93,7 @@ async function run(labels) {
       await page.waitForSelector(
         ".ResultsForSearchResultHeader .Text-module__root--Jk_wf"
       );
-      console.log(`Scraping ${label} page`);
+      console.log(`Scraping ${label} page`)
       const html = await page.$eval(
         ".ResultsForSearchResultHeader div",
         (element) => {
@@ -101,7 +101,7 @@ async function run(labels) {
         }
       );
       const resultNumber = html.split(" ")[0];
-      console.log(`Scraped ${label} page`);
+      console.log(`Scraped ${label} page`)
       return { label, resultNumber };
     } catch (error) {
       return { label, resultNumber: "N/A" };
