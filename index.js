@@ -23,7 +23,7 @@ app.post("/numbers", async (req, res) => {
     res.send(await run(labels));
     console.log("Try Successful!");
   } catch (e) {
-    res.status(500).send(e);
+    res.status(500).send(e.message);
   }
 });
 
