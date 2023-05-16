@@ -1,122 +1,150 @@
-const bodyParser = require("body-parser");
-var cors = require("cors");
-
 const express = require("express");
+const bodyParser = require("body-parser");
 const puppeteer = require("puppeteer");
+const Cheerio = require("cheerio");
+var cors = require('cors')
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
 app.use(bodyParser.json());
 app.use(cors());
 
-app.get("/", (req, res) => {
-  res.send("Running!");
-});
+const minimal_args = [
+  "--autoplay-policy=user-gesture-required",
+  "--disable-background-networking",
+  "--disable-background-timer-throttling",
+  "--disable-backgrounding-occluded-windows",
+  "--disable-breakpad",
+  "--disable-client-side-phishing-detection",
+  "--disable-component-update",
+  "--disable-default-apps",
+  "--disable-dev-shm-usage",
+  "--disable-domain-reliability",
+  "--disable-extensions",
+  "--disable-features=AudioServiceOutOfProcess",
+  "--disable-hang-monitor",
+  "--disable-ipc-flooding-protection",
+  "--disable-notifications",
+  "--disable-offer-store-unmasked-wallet-cards",
+  "--disable-popup-blocking",
+  "--disable-print-preview",
+  "--disable-prompt-on-repost",
+  "--disable-renderer-backgrounding",
+  "--disable-setuid-sandbox",
+  "--disable-speech-api",
+  "--disable-sync",
+  "--hide-scrollbars",
+  "--ignore-gpu-blacklist",
+  "--metrics-recording-only",
+  "--mute-audio",
+  "--no-default-browser-check",
+  "--no-first-run",
+  "--no-pings",
+  "--no-sandbox",
+  "--no-zygote",
+  "--password-store=basic",
+  "--use-gl=swiftshader",
+  "--use-mock-keychain",
+];
+
 // POST request handler
 app.post("/numbers", async (req, res) => {
-  console.log("POST request received");
   const url = "https://www.teacherspayteachers.com/";
+  const outputPath = "example_screenshot.png";
+  const results = [];
   let labels = req.body;
-  console.log(labels);
-
-  try {
-    res.send(await run(labels));
-  } catch (e) {
-    res.status(500).send(e.message);
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: minimal_args,
+    ignoreHTTPSErrors: true,
+    dumpio: false,
+  });
+  const page = await browser.newPage();
+  await page.setRequestInterception(true);
+  page.on("request", (req) => {
+    if (
+      req.resourceType() === "image" ||
+      req.resourceType() === "stylesheet" ||
+      req.resourceType() === "font" ||
+      req.url().startsWith("https://cdn.siftscience.com/s.js") ||
+      req
+        .url()
+        .startsWith("https://cdn.heapanalytics.com/js/heap-3064244106.js") ||
+      req.url().startsWith("https://www.googletagmanager.com") ||
+      req.url().startsWith("https://sessions.bugsnag.com") ||
+      req.url().startsWith("https://a11000223989.cdn.optimizely.com") ||
+      req.url().startsWith("https://cdn.transcend.io") ||
+      req.url().startsWith("https://retail.googleapis.com") ||
+      req.url().startsWith("https://www.facebook.com") ||
+      req.url().startsWith("https://cdn3.optimizely.com") ||
+      req.url().startsWith("https://logx.optimizely.com") ||
+      req
+        .url()
+        .startsWith("https://www.teacherspayteachers.com/graph/graphql") ||
+      req.url().startsWith("https://tapi.optimizely.com") ||
+      req
+        .url()
+        .startsWith(
+          "https://static1.teacherspayteachers.com/tpt-frontend/optimizelyjs"
+        ) ||
+      req
+        .url()
+        .startsWith(
+          "https://suggest-production.teacherspayteachers.com/suggestions"
+        ) ||
+      req
+        .url()
+        .startsWith("https://www.teacherspayteachers.com/gateway/graphql") ||
+      req
+        .url()
+        .startsWith(
+          "https://static1.teacherspayteachers.com/tpt-frontend/releases/production/current/tpt-frontend.Drawer"
+        ) ||
+      req
+        .url()
+        .startsWith(
+          "https://static1.teacherspayteachers.com/tpt-frontend/releases/production/current/tpt-frontend"
+        ) ||
+      req.url().startsWith("https://cdn.attn.tv/") ||
+      req.url().startsWith("https://events.attentivemobile.com") ||
+      req.url().startsWith("https://www.teacherspayteachers.com/cdn-cgi/")
+    ) {
+      req.abort();
+    } else {
+      console.log(req.url());
+      req.continue();
+    }
+  });
+  console.log(labels)
+  labels = labels.map((element) => encodeURIComponent(element));
+  for(let i = 0; i < labels.length; i++) {
+    results.push(await scrapeData(labels[i], page))
+    if(results.length === labels.length) {
+      res.send(results);
+      await browser.close();
+    }
   }
 });
+
+async function scrapeData(label, page) {
+  const data = [];
+  const LINK = "https://www.teacherspayteachers.com/Browse/Search:";
+  console.log(`Scraping ${label}`)
+  
+  await page.goto(LINK + label, { waitUntil: "networkidle2" });
+  let html = await page.$eval('.ResultsForSearchResultHeader', (element) => {
+    return element.innerHTML;
+  })
+
+  var $ = Cheerio.load(html);
+  var result = $('.Text-module__noMarginBottom--VJdLv').text();
+  var resultNumber = result.split(' ')[0];
+  console.log(`Scraped ${label}`);
+  return { label: decodeURIComponent(label) , resultNumber};
+}
 
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
-
-async function run(labels) {
-  const browser = await puppeteer.launch({
-    headless: "new",
-  });
-
-  const context = await browser.createIncognitoBrowserContext();
-  const scrapingPromises = labels.map(async (label) => {
-    const page = await context.newPage();
-    await page.setRequestInterception(true);
-    page.on("request", (request) => {
-      const pageLink = request.url();
-      const resourceType = request.resourceType();
-
-      if (
-        resourceType === "image" ||
-        resourceType === "stylesheet" ||
-        resourceType === "font" ||
-        pageLink.includes("https://cdn.siftscience.com/s.js") ||
-        pageLink.includes(
-          "https://cdn.heapanalytics.com/js/heap-3064244106.js"
-        ) ||
-        pageLink.includes("https://www.googletagmanager.com") ||
-        pageLink.includes("https://sessions.bugsnag.com") ||
-        pageLink.includes("https://a11000223989.cdn.optimizely.com") ||
-        pageLink.includes("https://cdn.transcend.io") ||
-        pageLink.includes("https://retail.googleapis.com") ||
-        pageLink.includes("https://www.facebook.com") ||
-        pageLink.includes("https://cdn3.optimizely.com") ||
-        pageLink.includes("https://logx.optimizely.com") ||
-        pageLink.includes(
-          "https://www.teacherspayteachers.com/graph/graphql"
-        ) ||
-        pageLink.includes("https://tapi.optimizely.com") ||
-        pageLink.includes(
-          "https://static1.teacherspayteachers.com/tpt-frontend/optimizelyjs"
-        ) ||
-        pageLink.includes(
-          "https://suggest-production.teacherspayteachers.com/suggestions"
-        ) ||
-        pageLink.includes(
-          "https://www.teacherspayteachers.com/gateway/graphql"
-        ) ||
-        pageLink.includes(
-          "https://static1.teacherspayteachers.com/tpt-frontend/releases/production/current/tpt-frontend.Drawer"
-        ) ||
-        pageLink.includes(
-          "https://static1.teacherspayteachers.com/tpt-frontend/releases/production/current/tpt-frontend"
-        ) ||
-        pageLink.includes("https://cdn.attn.tv/") ||
-        pageLink.includes("https://events.attentivemobile.com") ||
-        pageLink.includes("https://www.teacherspayteachers.com/cdn-cgi/")
-      ) {
-        request.abort();
-      } else {
-        request.continue();
-      }
-    });
-
-    try {
-      console.log(`Opening ${label} page`);
-      await page.goto(
-        "https://www.teacherspayteachers.com/Browse/Search:" + label,
-        { waitUntil: "domcontentloaded" }
-      );
-      await page.waitForSelector(
-        ".ResultsForSearchResultHeader .Text-module__root--Jk_wf"
-      );
-      console.log(`Scraping ${label} page`);
-      const html = await page.$eval(
-        ".ResultsForSearchResultHeader div",
-        (element) => {
-          return element.textContent;
-        }
-      );
-      const resultNumber = html.split(" ")[0];
-      console.log(`Scraped ${label} page`);
-      return { label, resultNumber };
-    } catch (error) {
-      return { label, resultNumber: "N/A" };
-    } finally {
-      await page.close();
-    }
-  });
-
-  const results = await Promise.all(scrapingPromises);
-
-  await browser.close();
-  return results;
-}
