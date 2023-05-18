@@ -47,7 +47,7 @@ const minimal_args = [
   "--use-gl=swiftshader",
   "--use-mock-keychain",
 ];
-const browser = await puppeteer.launch({
+const browser = puppeteer.launch({
   headless: true,
   args: minimal_args,
   ignoreHTTPSErrors: true,
