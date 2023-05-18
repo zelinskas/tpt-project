@@ -47,19 +47,20 @@ const minimal_args = [
   "--use-gl=swiftshader",
   "--use-mock-keychain",
 ];
+const browser = await puppeteer.launch({
+  headless: true,
+  args: minimal_args,
+  ignoreHTTPSErrors: true,
+  dumpio: false,
+});
 
 // POST request handler
 app.post("/numbers", async (req, res) => {
   const url = "https://www.teacherspayteachers.com/";
   const outputPath = "example_screenshot.png";
-  const results = [];
-  let labels = req.body;
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: minimal_args,
-    ignoreHTTPSErrors: true,
-    dumpio: false,
-  });
+  const labels = req.body;
+
+  const browser = await browser;
   const page = await browser.newPage();
   await page.setRequestInterception(true);
   page.on("request", (req) => {
@@ -117,14 +118,22 @@ app.post("/numbers", async (req, res) => {
     }
   });
   console.log(labels);
-  labels = labels.map((element) => encodeURIComponent(element));
-  for (let i = 0; i < labels.length; i++) {
-    results.push(await scrapeData(labels[i], page));
-    if (results.length === labels.length) {
-      res.send(results);
-      await browser.close();
-    }
-  }
+
+  const results = await Promise.all(
+    labels.map((label) => scrapeData(label, page))
+  );
+
+  res.send(results);
+  await browser.close();
+
+  // labels = labels.map((element) => encodeURIComponent(element));
+  // for (let i = 0; i < labels.length; i++) {
+  //   results.push(await scrapeData(labels[i], page));
+  //   if (results.length === labels.length) {
+  //     res.send(results);
+  //     await browser.close();
+  //   }
+  // }
 });
 
 async function scrapeData(label, page) {
