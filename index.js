@@ -47,12 +47,12 @@ const minimal_args = [
   "--use-gl=swiftshader",
   "--use-mock-keychain",
 ];
-const browser = puppeteer.launch({
-  headless: true,
-  args: minimal_args,
-  ignoreHTTPSErrors: true,
-  dumpio: false,
-});
+// const browser = puppeteer.launch({
+//   headless: true,
+//   args: minimal_args,
+//   ignoreHTTPSErrors: true,
+//   dumpio: false,
+// });
 
 // POST request handler
 app.post("/numbers", async (req, res) => {
@@ -60,7 +60,13 @@ app.post("/numbers", async (req, res) => {
   const outputPath = "example_screenshot.png";
   const labels = req.body;
 
-  const browser = await browser;
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: minimal_args,
+    ignoreHTTPSErrors: true,
+    dumpio: false,
+  });
+
   const page = await browser.newPage();
   await page.setRequestInterception(true);
   page.on("request", (req) => {
